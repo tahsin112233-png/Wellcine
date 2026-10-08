@@ -1,0 +1,48 @@
+# Auto-sync with upstream mesamirh/MovieBox-Tui.
+#
+# Runs daily (and on demand). Merges upstream/main into this fork's main with
+# a plain merge — it fails loudly on conflict rather than auto-resolving.
+# Upstream never touches web/, so merges are normally clean.
+#
+# NOTE: this workflow merges and pushes; it only ever touches upstream-owned
+# paths. The web/ app is independent of the Rust sources.
+
+name: sync-upstream
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # daily ~03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  merge-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out fork main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote and fetch
+        run: |
+          git remote add upstream https://github.com/mesamirh/MovieBox-Tui.git \
+            || git remote set-url upstream https://github.com/mesamirh/MovieBox-Tui.git
+          git fetch upstream main
+
+      - name: Merge upstream/main (fail loudly on conflict)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit upstream/main
+
+      - name: Push merged main
+        run: git push origin main

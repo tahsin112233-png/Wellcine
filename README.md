@@ -163,3 +163,62 @@ Dual-licensed under [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE).
 ## Disclaimer
 
 MovieBox-TUI does not host or store media. It plays publicly available streams. Users must comply with local laws.
+
+---
+
+## well-cinebox — web front-end (`web/`)
+
+This fork adds a **Next.js webapp** (HBO Max-style dark UI) that fronts the
+MovieBox provider through a TypeScript backend-for-frontend (BFF). The Rust
+TUI is untouched; everything web lives under `web/`.
+
+**What `web/` contains**
+
+- App Router UI: home rails (`?tab=2`), search, title details with season /
+  episode picker, and a player page (HTML5 video + quality picker + WebVTT
+  subtitles, DASH via dash.js).
+- BFF API routes implementing the provider contract (visitor-login session,
+  HMAC-MD5 request signing, 7-host pool with retry rotation):
+  `GET /api/home`, `/api/search`, `/api/title`, `/api/play`,
+  `GET /api/stream?token=` (signed, range-aware byte proxy with server-side
+  Referer/Cookie injection and DASH manifest rewriting),
+  `GET /api/subtitle` (list + signed WebVTT download),
+  `GET /api/debug/provider` (per-host reachability report).
+- All provider fetches route through `MOVIEBOX_PROXY_URL` when set.
+- Bundled offline **demo catalog** (`web/data/demo-catalog.json`, BigBuckBunny
+  stand-in stream), served with an honest "Demo" badge whenever the provider
+  is unreachable.
+
+**Auto-sync with upstream**
+
+`.github/workflows/sync-upstream.yml` runs daily (03:17 UTC) and on demand:
+it merges `mesamirh/MovieBox-Tui` `main` into this fork's `main` with a plain
+merge that fails loudly on conflict (never auto-resolves). Upstream never
+touches `web/`, so merges are normally clean.
+
+**Deploy to Vercel**
+
+1. Import the repo; set **Root Directory** to `web`.
+2. Add environment variables (see `web/.env.example`):
+
+   | name | required | purpose |
+   | --- | --- | --- |
+   | `STREAM_SIGNING_SECRET` | yes | HMAC-SHA256 key for `/api/stream` & `/api/subtitle` tokens (`openssl rand -hex 32`) |
+   | `NEXT_PUBLIC_SITE_URL` | recommended | public base URL, e.g. `https://well-cinebox.vercel.app` |
+   | `MOVIEBOX_PROXY_URL` | for a live catalog | HTTP(S) egress proxy with residential/mobile exit IP |
+   | `MOVIEBOX_HOME_TAB` | no (default `2`) | provider tab rendered on the home page |
+   | `MOVIEBOX_TIMEOUT_MS` | no (default `12000`) | per-request provider timeout |
+   | `CONTENT_CACHE_TTL_MS` | no (default `300000`) | home-rail cache TTL |
+   | `STREAM_TOKEN_TTL_SEC` | no (default `21600`) | stream token lifetime (clamped to upstream cookie expiry) |
+   | `DEMO_MODE` | no (default `false`) | force the offline demo catalog |
+
+3. Deploy.
+
+**Proxy requirement for a live catalog**
+
+The MovieBox edge blocks datacenter IPs — Vercel egress gets HTTP 403/440 keyed
+off the real TCP source IP, regardless of request signing. Without
+`MOVIEBOX_PROXY_URL` (a proxy whose exit IP is residential/mobile in a served
+region) the app runs on the bundled demo catalog. Verify with
+`GET /api/debug/provider`, which reports every host, status, latency, and
+whether the proxy is in the path — no secrets are ever exposed in its output.

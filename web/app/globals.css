@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-ink text-zinc-100 antialiased;
+}
+
+/* Hide scrollbars on horizontal rails while keeping scrollability */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Edge fade for rails */
+.rail-fade {
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, #0b0b12 90%);
+}
+.rail-fade-left {
+  pointer-events: none;
+  background: linear-gradient(to left, transparent, #0b0b12 90%);
+}
+
+/* Billboard gradient overlays */
+.hero-gradient {
+  background:
+    linear-gradient(to top, #0b0b12 2%, transparent 45%),
+    linear-gradient(to right, rgba(11, 11, 18, 0.85) 0%, transparent 55%);
+}
+
+.poster-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.poster-card:hover {
+  transform: scale(1.06);
+  box-shadow: 0 12px 32px rgba(124, 92, 255, 0.35);
+  z-index: 10;
+}
+
+input[type="range"] {
+  accent-color: #7c5cff;
+}
