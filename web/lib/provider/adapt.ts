@@ -96,19 +96,46 @@ interface GroupedItems {
   rest: unknown[];
 }
 
+/** True when the object looks like a subject (has an id or title). */
+function isSubjectLike(v: unknown): boolean {
+  return (
+    v !== null &&
+    typeof v === "object" &&
+    (get(v, "subjectId", "id") !== undefined || get(v, "title", "name") !== undefined)
+  );
+}
+
+/** Unwrap `{subject}` wrappers, tolerating items that already are subjects. */
+function unwrapSubjects(wrappers: unknown[]): unknown[] {
+  return wrappers
+    .map((w) => get(w, "subject") ?? (isSubjectLike(w) ? w : undefined))
+    .filter((s): s is unknown => s !== undefined && s !== null);
+}
+
+/** A field that may be `{banners:[...]}` / `{items:[...]}` or a bare array. */
+function asWrapperArray(v: unknown, ...innerKeys: string[]): unknown[] {
+  if (Array.isArray(v)) return v;
+  if (v !== null && typeof v === "object") {
+    const inner = get(v, ...innerKeys);
+    if (Array.isArray(inner)) return inner;
+  }
+  return [];
+}
+
 /** Pull subjects out of one `tab-operating` group object. */
 function subjectsFromGroup(group: unknown): GroupedItems {
-  const banners = asArr(get(group, "banner", "banners")).flatMap((b) =>
-    asArr(get(b, "banners")),
+  const bannerSubjects = unwrapSubjects(
+    asWrapperArray(get(group, "banner", "banners"), "banners", "list", "items"),
   );
-  const customItems = asArr(get(get(group, "customData"), "items"));
-  const direct = asArr(get(group, "subjects"));
-  const bannerSubjects = banners.map((b) => get(b, "subject")).filter(Boolean);
-  const customSubjects = customItems.map((i) => get(i, "subject")).filter(Boolean);
+  const customSubjects = unwrapSubjects(
+    asWrapperArray(get(group, "customData", "custom_data"), "items", "list", "subjects"),
+  );
+  const direct = asWrapperArray(get(group, "subjects"), "subjects", "list");
+  const directSubjects = unwrapSubjects(direct);
   return {
     label: asStr(get(group, "name", "title")),
     banner: bannerSubjects,
-    rest: [...customSubjects, ...direct],
+    rest: [...customSubjects, ...directSubjects],
   };
 }
 
